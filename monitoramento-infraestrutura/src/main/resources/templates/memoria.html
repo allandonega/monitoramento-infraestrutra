@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(pageTitle='Memória', content=~{::pageContent})}">
+<head><title>Memória</title></head>
+<body>
+
+<div th:fragment="pageContent">
+    <div class="page-header fade-in-up">
+        <h1 class="page-title">Monitoramento de Memória</h1>
+        <p class="page-subtitle">Análise de consumo de RAM, Swap e Processos pesados</p>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="cards-grid">
+        <div class="card fade-in-up">
+            <div class="card-icon primary">🧠</div>
+            <div class="card-label">Memória RAM Usada</div>
+            <div class="card-value sse-update" id="sse-mem-pct-detalhe"
+                 th:text="${#numbers.formatDecimal(memoria.percentualUso, 1, 1) + '%'}">--</div>
+            <div class="card-meta">
+                <span id="sse-mem-usado-detalhe" th:text="${memoria.usadoFormatado}">--</span> de 
+                <span th:text="${memoria.totalFormatado}">--</span>
+            </div>
+            <div class="progress-bar">
+                <div id="sse-mem-bar-detalhe" class="progress-fill"
+                     th:classappend="${memoria.percentualUso >= 85 ? 'danger' : (memoria.percentualUso >= 70 ? 'warning' : '')}"
+                     th:style="'width:' + ${memoria.percentualUso} + '%'"></div>
+            </div>
+        </div>
+
+        <div class="card fade-in-up">
+            <div class="card-icon success">🌿</div>
+            <div class="card-label">Disponível</div>
+            <div class="card-value sse-update" id="sse-mem-disp-detalhe"
+                 th:text="${memoria.disponivelFormatado}">--</div>
+            <div class="card-meta">
+                Livre para alocação
+            </div>
+        </div>
+
+        <div class="card fade-in-up">
+            <div class="card-icon warning">🔄</div>
+            <div class="card-label">Memória Swap</div>
+            <div class="card-value" th:text="${memoria.swapUsadoFormatado}">--</div>
+            <div class="card-meta">
+                Total: <span th:text="${memoria.swapTotalFormatado}">--</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill warning"
+                     th:style="'width:' + (${memoria.swapTotalBytes > 0 ? (memoria.swapUsadoBytes * 100.0 / memoria.swapTotalBytes) : 0}) + '%'"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sugestões Otimização -->
+    <div class="panel fade-in-up" th:if="${!memoria.sugestoes.isEmpty()}">
+        <div class="panel-header">
+            <span class="panel-title">💡 Diagnóstico e Sugestões</span>
+        </div>
+        <div class="panel-body">
+            <div th:each="s : ${memoria.sugestoes}"
+                 class="alert-box"
+                 th:classappend="${s.startsWith('🔴') ? 'danger' : (s.startsWith('🟡') ? 'warning' : (s.startsWith('✅') ? 'success' : 'info'))}">
+                <span th:text="${s}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Processos -->
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">⚙️ Processos Consumindo Memória</span>
+            <button class="badge badge-muted" style="border: none; cursor: pointer;" onclick="window.location.reload();">Atualizar</button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Nome do Processo</th>
+                        <th>Usuário</th>
+                        <th>PID</th>
+                        <th style="text-align: right;">Memória RAM (RSS)</th>
+                        <th style="text-align: right;">% Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="proc, iter : ${memoria.topProcessos}">
+                        <td class="mono" style="color: var(--text-muted);" th:text="${iter.index + 1}">1</td>
+                        <td style="font-weight: 500;">
+                            <span th:text="${proc.nome}">Processo</span>
+                            <span th:if="${proc.acimaDeLimite}" class="badge badge-warning" style="margin-left:8px; font-size: 0.6rem;">Consumo Alto</span>
+                        </td>
+                        <td th:text="${proc.usuario != null && !proc.usuario.isEmpty() ? proc.usuario : 'N/A'}">Usuário</td>
+                        <td class="mono" th:text="${proc.pid}">1234</td>
+                        <td class="mono" style="text-align: right; font-weight: 600;" 
+                            th:classappend="${proc.acimaDeLimite ? 'danger' : ''}"
+                            th:text="${proc.memoriaFormatada}">100 MB</td>
+                        <td class="mono" style="text-align: right; color: var(--color-primary);" th:text="${#numbers.formatDecimal(proc.percentualMemoria, 1, 1) + '%'}">1.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<!-- Atualizar as barras estáticas desta página via SSE -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const es = new EventSource('/api/sse/stream');
+        es.addEventListener('memoria', (e) => {
+            const d = JSON.parse(e.data);
+            const pctEl = document.getElementById('sse-mem-pct-detalhe');
+            const usadoEl = document.getElementById('sse-mem-usado-detalhe');
+            const dispEl = document.getElementById('sse-mem-disp-detalhe');
+            const barEl = document.getElementById('sse-mem-bar-detalhe');
+            
+            if(pctEl) pctEl.textContent = d.percentual.toFixed(1) + '%';
+            if(usadoEl) usadoEl.textContent = d.usado;
+            if(dispEl) dispEl.textContent = d.disponivel;
+            if(barEl) {
+                barEl.style.width = Math.min(100, d.percentual) + '%';
+                barEl.className = 'progress-fill';
+                if (d.percentual >= 85) barEl.classList.add('danger');
+                else if (d.percentual >= 70) barEl.classList.add('warning');
+            }
+        });
+    });
+</script>
+
+</div>
+</body>
+</html>

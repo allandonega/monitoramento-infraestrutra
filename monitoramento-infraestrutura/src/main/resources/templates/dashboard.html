@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(pageTitle='Dashboard', content=~{::pageContent})}">
+<head><title>Dashboard</title></head>
+<body>
+
+<div th:fragment="pageContent">
+    <div class="page-header fade-in-up">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Visão geral do sistema em tempo real</p>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="cards-grid">
+
+        <!-- Memória -->
+        <div class="card fade-in-up">
+            <div class="card-icon primary">🧠</div>
+            <div class="card-label">Memória RAM</div>
+            <div class="card-value sse-update" id="sse-mem-pct"
+                 th:text="${#numbers.formatDecimal(memoria.percentualUso, 1, 1) + '%'}">--</div>
+            <div class="card-meta">
+                Usado: <span id="sse-mem-usado" th:text="${memoria.usadoFormatado}">--</span>
+                · Livre: <span id="sse-mem-disp" th:text="${memoria.disponivelFormatado}">--</span>
+            </div>
+            <div class="progress-bar">
+                <div id="sse-mem-bar" class="progress-fill"
+                     th:classappend="${memoria.percentualUso >= 85 ? 'danger' : (memoria.percentualUso >= 70 ? 'warning' : '')}"
+                     th:style="'width:' + ${memoria.percentualUso} + '%'"></div>
+            </div>
+        </div>
+
+        <!-- Disco Principal -->
+        <div class="card fade-in-up" th:if="${!discos.isEmpty()}">
+            <div class="card-icon success">💾</div>
+            <div class="card-label">Disco Principal</div>
+            <div class="card-value sse-update" id="sse-disco-pct"
+                 th:text="${#numbers.formatDecimal(discos[0].percentualUso, 1, 1) + '%'}">--</div>
+            <div class="card-meta">
+                Usado: <span id="sse-disco-usado" th:text="${discos[0].usadoFormatado}">--</span>
+                · Livre: <span id="sse-disco-livre" th:text="${discos[0].livreFormatado}">--</span>
+            </div>
+            <div class="progress-bar">
+                <div id="sse-disco-bar" class="progress-fill"
+                     th:classappend="${discos[0].percentualUso >= 85 ? 'danger' : (discos[0].percentualUso >= 70 ? 'warning' : '')}"
+                     th:style="'width:' + ${discos[0].percentualUso} + '%'"></div>
+            </div>
+        </div>
+
+        <!-- Conexões de Rede -->
+        <div class="card fade-in-up">
+            <div class="card-icon info">🌐</div>
+            <div class="card-label">Conexões Ativas</div>
+            <div class="card-value sse-update" id="sse-rede-conexoes"
+                 th:text="${rede.totalConexoesAtivas}">--</div>
+            <div class="card-meta">
+                Interfaces: <span th:text="${rede.interfaces.size()}">0</span>
+            </div>
+        </div>
+
+        <!-- Swap -->
+        <div class="card fade-in-up">
+            <div class="card-icon warning">🔄</div>
+            <div class="card-label">Swap</div>
+            <div class="card-value"
+                 th:text="${memoria.swapTotalBytes > 0 ? memoria.swapUsadoFormatado : 'N/A'}">--</div>
+            <div class="card-meta" th:if="${memoria.swapTotalBytes > 0}">
+                Total: <span th:text="${memoria.swapTotalFormatado}">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha principal: Gráfico Memória + Partições -->
+    <div class="two-cols">
+
+        <!-- Gráfico de Memória (Histórico 1h) -->
+        <div class="panel fade-in-up">
+            <div class="panel-header">
+                <span class="panel-title">📈 Memória — Última Hora</span>
+            </div>
+            <div class="panel-body">
+                <div class="chart-container">
+                    <canvas id="chartMemoria"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Partições de Disco -->
+        <div class="panel fade-in-up">
+            <div class="panel-header">
+                <span class="panel-title">💾 Partições</span>
+                <a th:href="@{/disco}" style="font-size:0.75rem; color: var(--color-primary); text-decoration: none;">Ver detalhe →</a>
+            </div>
+            <div class="panel-body" style="padding: 16px 20px;">
+                <div th:each="disco : ${discos}" class="partition-item">
+                    <div class="partition-info">
+                        <span class="partition-name" th:text="${disco.particao}">--</span>
+                        <span class="partition-stats"
+                              th:text="${disco.usadoFormatado} + ' / ' + ${disco.totalFormatado} + ' (' + ${#numbers.formatDecimal(disco.percentualUso, 1, 1)} + '%)'">--</span>
+                    </div>
+                    <div class="progress-bar" style="height: 6px;">
+                        <div class="progress-fill"
+                             th:classappend="${disco.percentualUso >= 85 ? 'danger' : (disco.percentualUso >= 70 ? 'warning' : '')}"
+                             th:style="'width:' + ${disco.percentualUso} + '%'"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Processos -->
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">⚙️ Top Processos por Memória</span>
+            <a th:href="@{/memoria}" style="font-size:0.75rem; color: var(--color-primary); text-decoration: none;">Ver todos →</a>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Processo</th>
+                        <th>PID</th>
+                        <th>Memória</th>
+                        <th>%</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="proc, iter : ${memoria.topProcessos}" th:if="${iter.index < 10}">
+                        <td class="mono" style="color: var(--text-muted);" th:text="${iter.index + 1}">1</td>
+                        <td th:text="${proc.nome}">--</td>
+                        <td class="mono" th:text="${proc.pid}">--</td>
+                        <td class="mono" th:text="${proc.memoriaFormatada}">--</td>
+                        <td class="mono" th:text="${#numbers.formatDecimal(proc.percentualMemoria, 1, 1) + '%'}">--</td>
+                        <td>
+                            <span th:if="${proc.acimaDeLimite}" class="badge badge-warning">Alto</span>
+                            <span th:unless="${proc.acimaDeLimite}" class="badge badge-success">Normal</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sugestões -->
+    <div class="panel fade-in-up" th:if="${!memoria.sugestoes.isEmpty()}">
+        <div class="panel-header">
+            <span class="panel-title">💡 Sugestões de Otimização</span>
+        </div>
+        <div class="panel-body">
+            <div th:each="s : ${memoria.sugestoes}"
+                 class="alert-box"
+                 th:classappend="${s.startsWith('🔴') ? 'danger' : (s.startsWith('🟡') ? 'warning' : (s.startsWith('✅') ? 'success' : 'info'))}">
+                <span th:text="${s}">--</span>
+            </div>
+        </div>
+    </div>
+
+<script th:inline="javascript">
+    // Dados do histórico de memória injetados pelo Thymeleaf
+    const historicoMemoria = /*[[${historicoMemoria}]]*/ [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const labels = historicoMemoria.map(m => {
+            const d = new Date(m.capturadoEm);
+            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        });
+        const dados = historicoMemoria.map(m => m.percentualUso);
+
+        const ctx = document.getElementById('chartMemoria');
+        if (ctx && labels.length > 0) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Uso de Memória (%)',
+                        data: dados,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', maxTicksLimit: 6 }
+                        },
+                        y: {
+                            min: 0, max: 100,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', callback: v => v + '%' }
+                        }
+                    }
+                }
+            });
+        } else if (ctx) {
+            ctx.parentElement.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 0">Aguardando dados históricos...</p>';
+        }
+    });
+</script>
+
+</div>
+</body>
+</html>

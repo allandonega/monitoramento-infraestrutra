@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(pageTitle='Rede', content=~{::pageContent})}">
+<head><title>Rede</title></head>
+<body>
+
+<div th:fragment="pageContent">
+    <div class="page-header fade-in-up">
+        <h1 class="page-title">Monitoramento de Rede</h1>
+        <p class="page-subtitle">Interfaces, tráfego de dados e conexões ativas</p>
+    </div>
+
+    <!-- Resumo de Conexões -->
+    <div class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+        <div class="card fade-in-up">
+            <div class="card-icon info">🌐</div>
+            <div class="card-label">Conexões Estabelecidas</div>
+            <div class="card-value sse-update" id="sse-rede-ativas-detalhe" th:text="${rede.totalConexoesAtivas}">0</div>
+            <div class="card-meta">Conexões ativas no momento</div>
+        </div>
+
+        <div class="card fade-in-up">
+            <div class="card-icon warning">⏳</div>
+            <div class="card-label">Conexões Fechadas / Espera</div>
+            <div class="card-value sse-update" id="sse-rede-fechadas-detalhe" th:text="${rede.totalConexoesFechadas}">0</div>
+            <div class="card-meta">TIME_WAIT ou CLOSE_WAIT</div>
+        </div>
+    </div>
+
+    <!-- Conexões Suspeitas (Ameaças) -->
+    <div class="panel fade-in-up" th:if="${!rede.conexoesSuspeitas.isEmpty()}" style="border-color: var(--color-danger);">
+        <div class="panel-header" style="background: rgba(239, 68, 68, 0.1);">
+            <span class="panel-title" style="color: var(--color-danger);">🚨 Alerta de Segurança: Conexões Suspeitas detectadas</span>
+            <span class="badge badge-danger" th:text="${rede.conexoesSuspeitas.size()} + ' Ameaça(s) Potencial(is)'">1 Detectadas</span>
+        </div>
+        <div style="overflow-x: auto; max-height: 250px;">
+            <table class="data-table">
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th>IP Origem (Remoto)</th>
+                        <th>Porta Local Alvo</th>
+                        <th>Estado Redes</th>
+                        <th>Motivo Identificado</th>
+                    </tr>
+                </thead>
+                <tbody id="sse-rede-suspeitas-tbody">
+                    <tr th:each="conn : ${rede.conexoesSuspeitas}">
+                        <td class="mono" style="color: var(--color-danger); font-weight: bold;" th:text="${conn.ipRemoto}">8.8.8.8</td>
+                        <td class="mono" th:text="${conn.portaLocal}">22</td>
+                        <td><span class="badge badge-warning" th:text="${conn.estado}">SYN_RECV</span></td>
+                        <td th:text="${conn.motivoSuspeita}">Acesso externo à porta 22</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Interfaces e Tráfego -->
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">📡 Interfaces de Rede e Tráfego</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Interface</th>
+                        <th>Endereço IPV4</th>
+                        <th style="text-align: right; color: var(--color-success);">▲ Up / Enviado</th>
+                        <th style="text-align: right; color: var(--color-primary);">▼ Down / Recebido</th>
+                        <th style="text-align: right;">Total Enviado</th>
+                        <th style="text-align: right;">Total Recebido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="in : ${rede.interfaces}">
+                        <td style="font-weight: 600;" th:text="${in.nome}">eth0</td>
+                        <td class="mono" th:text="${in.enderecoIp}">192.168.0.1</td>
+                        <td class="mono" style="text-align: right; font-weight: 600; color: var(--color-success);" th:text="${in.envioFormatado}">0 B/s</td>
+                        <td class="mono" style="text-align: right; font-weight: 600; color: var(--color-primary);" th:text="${in.recebimentoFormatado}">0 B/s</td>
+                        
+                        <td class="mono" style="text-align: right;" 
+                            th:text="${in.totalEnviados < 1048576 ? (in.totalEnviados / 1024) + ' KB' : #numbers.formatDecimal(in.totalEnviados / 1048576.0, 1, 2) + ' MB'}">0 KB</td>
+                        <td class="mono" style="text-align: right;" 
+                            th:text="${in.totalRecebidos < 1048576 ? (in.totalRecebidos / 1024) + ' KB' : #numbers.formatDecimal(in.totalRecebidos / 1048576.0, 1, 2) + ' MB'}">0 KB</td>
+                    </tr>
+                    <tr th:if="${rede.interfaces.isEmpty()}">
+                        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Nenhuma interface ativa detectada</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="padding: 12px 20px; font-size: 0.75rem; color: var(--text-muted); background: var(--color-surface-2); text-align: right;">
+            * A velocidade (Up/Down) é baseada delta do tráfego atual com os últimos dados coletados
+        </div>
+    </div>
+
+    <!-- Conexões Ativas -->
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">🔗 Conexões IPv4/IPv6 Ativas (TCP)</span>
+            <button class="badge badge-muted" style="border: none; cursor: pointer;" onclick="window.location.reload();">Atualizar Lista</button>
+        </div>
+        <div style="overflow-x: auto; max-height: 500px;">
+            <table class="data-table">
+                <thead style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Endereço Local</th>
+                        <th>Porta</th>
+                        <th>Endereço Remoto</th>
+                        <th>Porta</th>
+                        <th>Estado</th>
+                        <th>Processo / PID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="conn : ${rede.conexoes}" th:if="${conn.estado != 'NONE'}">
+                        <td th:text="${conn.protocolo}">TCP</td>
+                        <td class="mono" th:text="${conn.ipLocal}">127.0.0.1</td>
+                        <td class="mono" style="color: var(--color-primary);" th:text="${conn.portaLocal}">8080</td>
+                        
+                        <td class="mono" th:text="${conn.ipRemoto}">192.168.0.2</td>
+                        <td class="mono" style="color: var(--color-info);" th:text="${conn.portaRemota}">443</td>
+                        
+                        <td>
+                            <span class="badge" th:classappend="${
+                                conn.estado == 'ESTABLISHED' ? 'badge-success' : 
+                                (conn.estado == 'LISTEN' ? 'badge-primary' : 
+                                (conn.estado == 'TIME_WAIT' || conn.estado == 'CLOSE_WAIT' ? 'badge-warning' : 'badge-muted'))
+                            }" th:text="${conn.estado}">ESTABELECIDO</span>
+                        </td>
+                        
+                        <td th:text="${conn.processo}">Sistema</td>
+                    </tr>
+                    <tr th:if="${rede.conexoes.isEmpty()}">
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Nenhuma conexão tcp remota detectada</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<!-- Atualizar as barras estáticas desta página via SSE -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const es = new EventSource('/api/sse/stream');
+        es.addEventListener('rede', (e) => {
+            const d = JSON.parse(e.data);
+            const ativasEl = document.getElementById('sse-rede-ativas-detalhe');
+            const fechadasEl = document.getElementById('sse-rede-fechadas-detalhe');
+            
+            if(ativasEl) {
+                ativasEl.textContent = d.conexoesAtivas;
+                ativasEl.classList.remove('flash');
+                void ativasEl.offsetWidth;
+                ativasEl.classList.add('flash');
+            }
+            if(fechadasEl) {
+                fechadasEl.textContent = d.conexoesFechadas;
+            }
+        });
+    });
+</script>
+
+</div>
+</body>
+</html>

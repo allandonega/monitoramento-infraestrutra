@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(pageTitle, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${pageTitle} + ' — Monitor'">Monitor de Infraestrutura</title>
+    <meta name="description" content="Monitoramento em tempo real de disco, memória e rede">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <!-- HTMX -->
+    <script th:src="@{/webjars/htmx.org/dist/htmx.min.js}" defer></script>
+</head>
+<body>
+
+<div class="app-layout">
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="header-logo">📡</div>
+            <span class="header-title">Monitor de Infraestrutura</span>
+        </div>
+        <div class="header-status">
+            <div class="status-dot" id="sse-status-dot"></div>
+            <span id="sse-status-text">Conectando...</span>
+            <span style="color: var(--text-muted)">|</span>
+            <span id="last-update">--</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+        <p class="sidebar-section-title">Monitoramento</p>
+        <ul class="sidebar-nav">
+            <li>
+                <a th:href="@{/}" class="sidebar-link" th:classappend="${paginaAtiva == 'dashboard' ? 'active' : ''}">
+                    <span class="sidebar-icon">🏠</span>
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/disco}" class="sidebar-link" th:classappend="${paginaAtiva == 'disco' ? 'active' : ''}">
+                    <span class="sidebar-icon">💾</span>
+                    Disco
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/memoria}" class="sidebar-link" th:classappend="${paginaAtiva == 'memoria' ? 'active' : ''}">
+                    <span class="sidebar-icon">🧠</span>
+                    Memória
+                </a>
+            </li>
+            <li>
+                <a th:href="@{/rede}" class="sidebar-link" th:classappend="${paginaAtiva == 'rede' ? 'active' : ''}">
+                    <span class="sidebar-icon">🌐</span>
+                    Rede
+                </a>
+            </li>
+        </ul>
+
+        <p class="sidebar-section-title">Sistema</p>
+        <ul class="sidebar-nav">
+            <li>
+                <a href="/h2-console" target="_blank" class="sidebar-link">
+                    <span class="sidebar-icon">🗄️</span>
+                    Banco de Dados
+                </a>
+            </li>
+            <li>
+                <a href="/actuator/health" target="_blank" class="sidebar-link">
+                    <span class="sidebar-icon">❤️</span>
+                    Health Check
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main -->
+    <main class="app-main">
+        <div th:replace="${content}"></div>
+    </main>
+
+</div>
+
+<!-- SSE Connection Script -->
+<script>
+(function() {
+    const dot = document.getElementById('sse-status-dot');
+    const statusText = document.getElementById('sse-status-text');
+    const lastUpdate = document.getElementById('last-update');
+
+    function connectSSE() {
+        const es = new EventSource('/api/sse/stream');
+
+        es.onopen = () => {
+            dot.style.background = 'var(--color-success)';
+            statusText.textContent = 'Ao vivo';
+        };
+
+        es.addEventListener('memoria', (e) => {
+            const d = JSON.parse(e.data);
+            updateElement('sse-mem-pct', d.percentual.toFixed(1) + '%');
+            updateElement('sse-mem-usado', d.usado);
+            updateElement('sse-mem-disp', d.disponivel);
+            updateProgress('sse-mem-bar', d.percentual);
+            updateTimestamp();
+        });
+
+        es.addEventListener('disco', (e) => {
+            const d = JSON.parse(e.data);
+            updateElement('sse-disco-pct', d.percentual.toFixed(1) + '%');
+            updateElement('sse-disco-usado', d.usado);
+            updateElement('sse-disco-livre', d.livre);
+            updateProgress('sse-disco-bar', d.percentual);
+        });
+
+        es.addEventListener('rede', (e) => {
+            const d = JSON.parse(e.data);
+            updateElement('sse-rede-conexoes', d.conexoesAtivas);
+        });
+
+        es.onerror = () => {
+            dot.style.background = 'var(--color-danger)';
+            statusText.textContent = 'Reconectando...';
+            es.close();
+            setTimeout(connectSSE, 5000);
+        };
+    }
+
+    function updateElement(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = value;
+            el.classList.remove('flash');
+            void el.offsetWidth;
+            el.classList.add('flash');
+        }
+    }
+
+    function updateProgress(id, percent) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.width = Math.min(100, percent) + '%';
+            el.className = 'progress-fill';
+            if (percent >= 85) el.classList.add('danger');
+            else if (percent >= 70) el.classList.add('warning');
+        }
+    }
+
+    function updateTimestamp() {
+        const now = new Date();
+        lastUpdate.textContent = now.toLocaleTimeString('pt-BR');
+    }
+
+    connectSSE();
+})();
+</script>
+
+<style>
+@keyframes flash {
+  0%   { color: var(--color-primary); }
+  100% { color: inherit; }
+}
+.flash { animation: flash 0.4s ease; }
+</style>
+
+</body>
+</html>
