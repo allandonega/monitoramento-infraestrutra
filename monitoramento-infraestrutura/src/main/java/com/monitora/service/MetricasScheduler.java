@@ -4,6 +4,8 @@ import com.monitora.repository.MetricaDiscoRepository;
 import com.monitora.repository.MetricaMemoriaRepository;
 import com.monitora.repository.MetricaRedeRepository;
 import com.monitora.repository.ProcessoMemoriaRepository;
+import com.monitora.repository.MetricaCpuRepository;
+import com.monitora.repository.ProcessoCpuRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,10 +23,13 @@ public class MetricasScheduler {
     private final ColetorDiscoService coletorDisco;
     private final ColetorMemoriaService coletorMemoria;
     private final ColetorRedeService coletorRede;
+    private final ColetorCpuService coletorCpu;
     private final MetricaDiscoRepository discoRepo;
     private final MetricaMemoriaRepository memoriaRepo;
     private final MetricaRedeRepository redeRepo;
     private final ProcessoMemoriaRepository processoRepo;
+    private final MetricaCpuRepository cpuRepo;
+    private final ProcessoCpuRepository processoCpuRepo;
 
     @Value("${historico.retencao.dias:30}")
     private int retencaoDias;
@@ -62,6 +67,17 @@ public class MetricasScheduler {
         }
     }
 
+    // CPU: a cada 10 segundos
+    @Scheduled(fixedDelayString = "${coleta.cpu.intervalo:10000}")
+    public void coletarCpu() {
+        try {
+            coletorCpu.coletarEPersistir();
+            log.debug("Métricas de CPU coletadas");
+        } catch (Exception e) {
+            log.error("Erro ao coletar CPU: {}", e.getMessage());
+        }
+    }
+
     // Limpeza de histórico: uma vez por dia à meia-noite
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
@@ -72,5 +88,7 @@ public class MetricasScheduler {
         memoriaRepo.deleteOlderThan(limite);
         redeRepo.deleteOlderThan(limite);
         processoRepo.deleteOlderThan(limite);
+        cpuRepo.deleteOlderThan(limite);
+        processoCpuRepo.deleteOlderThan(limite);
     }
 }

@@ -57,6 +57,12 @@
                     Rede
                 </a>
             </li>
+            <li>
+                <a th:href="@{/cpu}" class="sidebar-link" th:classappend="${paginaAtiva == 'cpu' ? 'active' : ''}">
+                    <span class="sidebar-icon">⚡</span>
+                    CPU
+                </a>
+            </li>
         </ul>
 
         <p class="sidebar-section-title">Sistema</p>
@@ -118,6 +124,12 @@
         es.addEventListener('rede', (e) => {
             const d = JSON.parse(e.data);
             updateElement('sse-rede-conexoes', d.conexoesAtivas);
+        });
+
+        es.addEventListener('cpu', (e) => {
+            const d = JSON.parse(e.data);
+            updateElement('sse-cpu-pct', d.percentual.toFixed(1) + '%');
+            updateProgress('sse-cpu-bar', d.percentual);
         });
 
         es.onerror = () => {

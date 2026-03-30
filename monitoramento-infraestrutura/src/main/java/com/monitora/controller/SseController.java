@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.monitora.dto.DiscoInfoDTO;
 import com.monitora.dto.MemoriaInfoDTO;
 import com.monitora.dto.RedeInfoDTO;
+import com.monitora.dto.CpuInfoDTO;
 import com.monitora.service.ColetorDiscoService;
 import com.monitora.service.ColetorMemoriaService;
+import com.monitora.service.ColetorRedeService;
+import com.monitora.service.ColetorCpuService;
 import com.monitora.service.ColetorRedeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,7 @@ public class SseController {
     private final ColetorDiscoService coletorDisco;
     private final ColetorMemoriaService coletorMemoria;
     private final ColetorRedeService coletorRede;
+    private final ColetorCpuService coletorCpu;
     private final ObjectMapper objectMapper;
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -53,6 +57,13 @@ public class SseController {
                     .data(objectMapper.writeValueAsString(new RedeEvent(
                         rede.getTotalConexoesAtivas(),
                         rede.getTotalConexoesFechadas()
+                    ))));
+
+                CpuInfoDTO cpu = coletorCpu.coletarDadosAtuais();
+                emitter.send(SseEmitter.event()
+                    .name("cpu")
+                    .data(objectMapper.writeValueAsString(new CpuEvent(
+                        cpu.getPercentualUso()
                     ))));
 
                 List<DiscoInfoDTO> discos = coletorDisco.coletarDadosAtuais();
@@ -87,4 +98,5 @@ public class SseController {
     record MemoriaEvent(double percentual, String usado, String disponivel) {}
     record RedeEvent(int conexoesAtivas, int conexoesFechadas) {}
     record DiscoEvent(double percentual, String usado, String livre) {}
+    record CpuEvent(double percentual) {}
 }

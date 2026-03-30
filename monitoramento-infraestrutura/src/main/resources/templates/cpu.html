@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('CPU', ~{::content})}">
+<head>
+    <title>CPU</title>
+</head>
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title">Monitoramento de CPU</h1>
+        <p class="page-subtitle">Acompanhe a carga do processador e processos da infraestrutura</p>
+    </div>
+
+    <!-- Resumo Cards -->
+    <div class="grid-cards">
+        <div class="card status-card">
+            <div class="card-icon">⚡</div>
+            <div class="card-info">
+                <h3>Uso de CPU</h3>
+                <p class="value info-value flash" id="sse-cpu-pct" th:text="${#numbers.formatDecimal(cpu.percentualUso, 1, 1) + '%'}">--</p>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-fill" id="sse-cpu-bar"
+                     th:style="'width: ' + ${cpu.percentualUso} + '%'"
+                     th:classappend="${cpu.percentualUso >= 85 ? 'danger' : (cpu.percentualUso >= 60 ? 'warning' : '')}"></div>
+            </div>
+        </div>
+        <div class="card status-card">
+            <div class="card-icon">🏭</div>
+            <div class="card-info">
+                <h3>Núcleos Lógicos</h3>
+                <p class="value" th:text="${cpu.qtdNucleos}">--</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sugestões -->
+    <div class="card action-card mt-3">
+        <div class="card-header">
+            <h2>💡 Recomendações de CPU e Gargalos</h2>
+        </div>
+        <div class="card-body">
+            <ul class="suggestion-list">
+                <li th:each="sugestao : ${cpu.sugestoes}" th:text="${sugestao}"
+                    th:classappend="${#strings.contains(sugestao, '🔴') ? 'text-danger' : (#strings.contains(sugestao, '🟡') ? 'text-warning' : '')}">
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="grid-2col mt-3">
+        <!-- Processos que usam Mais CPU -->
+        <div class="card table-card">
+            <div class="card-header">
+                <h2>📈 Processos que usam MAIS CPU</h2>
+            </div>
+            <div class="card-body p-0">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>PID</th>
+                        <th>Usuário</th>
+                        <th class="text-right">Uso (%)</th>
+                    </tr>
+                    </thead>
+                    <tbody id="sse-cpu-mais">
+                    <tr th:each="p : ${cpu.topProcessosMaisCPU}" th:classappend="${p.percentualCpu > 15 ? 'row-warning' : ''}">
+                        <td><strong><span th:text="${p.nome}"></span></strong></td>
+                        <td th:text="${p.pid}"></td>
+                        <td th:text="${p.usuario}"></td>
+                        <td class="text-right"><span class="badge" th:classappend="${p.percentualCpu > 15 ? 'badge-warning' : 'badge-info'}" th:text="${p.percentualCpu + '%'}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Processos que usam Menos CPU -->
+        <div class="card table-card">
+            <div class="card-header">
+                <h2>📉 Processos que usam MENOS CPU</h2>
+            </div>
+            <div class="card-body p-0">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>PID</th>
+                        <th>Usuário</th>
+                        <th class="text-right">Uso (%)</th>
+                    </tr>
+                    </thead>
+                    <tbody id="sse-cpu-menos">
+                    <tr th:each="p : ${cpu.topProcessosMenosCPU}">
+                        <td><strong><span th:text="${p.nome}"></span></strong></td>
+                        <td th:text="${p.pid}"></td>
+                        <td th:text="${p.usuario}"></td>
+                        <td class="text-right"><span class="badge badge-success" th:text="${p.percentualCpu + '%'}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

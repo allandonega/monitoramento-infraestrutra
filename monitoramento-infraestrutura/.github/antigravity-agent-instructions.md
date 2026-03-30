@@ -10,13 +10,19 @@ description: Criar uma aplicação web para monitoramento em tempo real de disco
 	- Identificar diretórios com maior uso de disco.
 
 # Rede
-	- Monitorar acessos e tentativas de acessos da rede, mostrando usuários, IP origem, Ip Destino
+	- Monitorar acessos e tentativas de acessos da rede mostrando usuários, IP origem, Ip Destino
 	- Identificar tentativas de invasão na minha rede
 
 # Memória
-	- Monitorar quantidade de memória utlizada e livre. Mostrar quais aplicações estão utilizando e/ou subutilizando muita memória e sugerir otimização.
+	- Monitorar quantidade de memória utlizada e livre. 
+	- Mostrar quais aplicações estão utilizando e/ou subutilizando muita memória e sugerir otimização.
 
-
+# CPU
+	- Faça monitoramento de CPU
+	- Mostre quais aplicações estão utilizando mais CPU
+	- Mostre quais aplicações estão utilizando menos CPU
+	- Mostre quais aplicações estão utilizando mais CPU
+	
 # Stack
 	- Java
 		- Utilizar 100% de stack java para executar esse projeto.
