@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/disco")
@@ -31,6 +33,18 @@ public class DiscoController {
         List<DiscoInfoDTO> discos = coletorDisco.coletarDadosAtuais();
         model.addAttribute("discos", discos);
         model.addAttribute("paginaAtiva", "disco");
+
+        List<MetricaDisco> historico = repository.findByCapturadoEmAfterOrderByCapturadoEmAsc(
+                LocalDateTime.now().minusHours(24));
+        List<Map<String, Object>> historicoMapped = historico.stream().map(m -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("capturadoEm", m.getCapturadoEm().toString());
+            map.put("particao", m.getParticao());
+            map.put("percentualUso", m.getPercentualUso());
+            return map;
+        }).collect(Collectors.toList());
+        model.addAttribute("historicoDisco", historicoMapped);
+
         return "disco";
     }
 
