@@ -34,6 +34,18 @@
         </div>
     </div>
 
+    <!-- Gráfico Histórico CPU (1h) -->
+    <div class="panel fade-in-up mt-3">
+        <div class="panel-header">
+            <span class="panel-title">📈 CPU — Última Hora</span>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="chartCpu"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- Sugestões -->
     <div class="card action-card mt-3">
         <div class="card-header">
@@ -103,6 +115,57 @@
             </div>
         </div>
     </div>
+
+<script th:inline="javascript">
+    const historicoCpu = /*[[${historicoCpu}]]*/ [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const labels = historicoCpu.map(m => {
+            const d = new Date(m.capturadoEm);
+            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        });
+        const dados = historicoCpu.map(m => m.percentualUso);
+
+        const ctx = document.getElementById('chartCpu');
+        if (ctx && labels.length > 0) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Uso de CPU (%)',
+                        data: dados,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', maxTicksLimit: 6 }
+                        },
+                        y: {
+                            min: 0, max: 100,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', callback: v => v + '%' }
+                        }
+                    }
+                }
+            });
+        } else if (ctx) {
+            ctx.parentElement.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 0">Aguardando dados históricos...</p>';
+        }
+    });
+</script>
+
 </div>
 </body>
 </html>

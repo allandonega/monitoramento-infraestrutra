@@ -10,6 +10,18 @@
         <p class="page-subtitle">Uso de partições e análise de diretórios</p>
     </div>
 
+    <!-- Gráfico Histórico de Disco (24h) -->
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">📈 Uso de Disco — Últimas 24h</span>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="chartDisco"></canvas>
+            </div>
+        </div>
+    </div>
+
     <div th:each="disco, iter : ${discos}" class="panel fade-in-up">
         <div class="panel-header">
             <span class="panel-title">
@@ -72,6 +84,71 @@
             </div>
         </div>
     </div>
+
+<script th:inline="javascript">
+    const historicoDisco = /*[[${historicoDisco}]]*/ [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctx = document.getElementById('chartDisco');
+        if (!ctx) return;
+
+        if (historicoDisco.length === 0) {
+            ctx.parentElement.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 0">Aguardando dados históricos...</p>';
+            return;
+        }
+
+        // Agrupa por partição
+        const particoes = [...new Set(historicoDisco.map(m => m.particao))];
+        const cores = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+        // Labels únicos por tempo (usa primeira partição como referência)
+        const primeiraParticao = particoes[0];
+        const labels = historicoDisco
+            .filter(m => m.particao === primeiraParticao)
+            .map(m => {
+                const d = new Date(m.capturadoEm);
+                return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            });
+
+        const datasets = particoes.map((p, i) => ({
+            label: p,
+            data: historicoDisco.filter(m => m.particao === p).map(m => m.percentualUso),
+            borderColor: cores[i % cores.length],
+            backgroundColor: cores[i % cores.length].replace(')', ',0.08)').replace('rgb', 'rgba'),
+            fill: false,
+            tension: 0.4,
+            pointRadius: 0,
+            borderWidth: 2
+        }));
+
+        new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: particoes.length > 1,
+                        labels: { color: '#94a3b8', boxWidth: 12 }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#64748b', maxTicksLimit: 8 }
+                    },
+                    y: {
+                        min: 0, max: 100,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#64748b', callback: v => v + '%' }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
 </div>
 
 </body>

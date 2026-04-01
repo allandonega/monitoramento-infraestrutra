@@ -28,6 +28,11 @@ public interface MetricaRedeRepository extends JpaRepository<MetricaRede, Long> 
     List<MetricaRede> findByCapturadoEmAfterAndIpRemotoIsNotNullOrderByCapturadoEmDesc(
         LocalDateTime after);
 
+    @Query("SELECT m.capturadoEm, COUNT(m) FROM MetricaRede m " +
+           "WHERE m.capturadoEm > :after AND m.ipRemoto IS NOT NULL AND m.estado = 'ESTABLISHED' " +
+           "GROUP BY m.capturadoEm ORDER BY m.capturadoEm ASC")
+    List<Object[]> countConexoesPorTempo(@Param("after") LocalDateTime after);
+
     @Modifying
     @Query("DELETE FROM MetricaRede m WHERE m.capturadoEm < :antes")
     void deleteOlderThan(@Param("antes") LocalDateTime antes);

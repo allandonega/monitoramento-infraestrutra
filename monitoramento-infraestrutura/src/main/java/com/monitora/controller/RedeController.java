@@ -14,7 +14,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/rede")
@@ -29,6 +32,16 @@ public class RedeController {
         RedeInfoDTO dados = coletorRede.coletarDadosAtuais();
         model.addAttribute("rede", dados);
         model.addAttribute("paginaAtiva", "rede");
+
+        List<Object[]> contagens = redeRepo.countConexoesPorTempo(LocalDateTime.now().minusHours(1));
+        List<Map<String, Object>> historicoRede = contagens.stream().map(row -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("capturadoEm", row[0].toString());
+            map.put("total", row[1]);
+            return map;
+        }).collect(Collectors.toList());
+        model.addAttribute("historicoRede", historicoRede);
+
         return "rede";
     }
 
