@@ -103,6 +103,8 @@ public class ColetorRedeService {
                 .portaRemota(c.getPortaRemota())
                 .protocolo(c.getProtocolo())
                 .estado(c.getEstado())
+                .suspeita(c.isSuspeita())
+                .motivoSuspeita(c.getMotivoSuspeita())
                 .processo(c.getProcesso())
                 .build();
             repository.save(m);

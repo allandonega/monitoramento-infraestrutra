@@ -6,7 +6,9 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "metrica_cpu")
+@Table(name = "metrica_cpu", indexes = {
+    @Index(name = "idx_cpu_capturado_em", columnList = "capturado_em")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

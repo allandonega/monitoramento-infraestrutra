@@ -11,6 +11,28 @@
         <p class="page-subtitle">Acompanhe a carga do processador e processos da infraestrutura</p>
     </div>
 
+    <div th:if="${alertas != null and !alertas.isEmpty()}" class="panel fade-in-up" style="border-color: var(--color-danger);">
+        <div class="panel-header" style="background: rgba(239, 68, 68, 0.1);">
+            <span class="panel-title" style="color: var(--color-danger);">🚨 Alertas de CPU</span>
+        </div>
+        <div class="panel-body">
+            <ul style="margin:0; padding-left: 1.3rem;">
+                <li th:each="a : ${alertas}" th:text="${a}" style="color: var(--color-danger);"></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">📈 Histórico de CPU (1h)</span>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="chartCpuHistory"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- Resumo Cards -->
     <div class="grid-cards">
         <div class="card status-card">
@@ -104,5 +126,50 @@
         </div>
     </div>
 </div>
+
+<script>
+    async function carregarHistoricoCpu(horas = 1) {
+        try {
+            const resposta = await fetch('/cpu/api/historico?horas=' + horas);
+            if (!resposta.ok) return;
+            const dados = await resposta.json();
+            const ctx = document.getElementById('chartCpuHistory');
+            if (!ctx) return;
+
+            const labels = dados.map(item => new Date(item.capturadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+            const valores = dados.map(item => item.percentualUso);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'CPU (%)',
+                        data: valores,
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249,115,22,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 6 } },
+                        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v + '%' } }
+                    }
+                }
+            });
+        } catch (e) {
+            console.warn('Erro ao carregar histórico de CPU', e);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => carregarHistoricoCpu(1));
+</script>
 </body>
 </html>

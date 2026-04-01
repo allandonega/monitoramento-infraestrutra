@@ -12,6 +12,11 @@ import java.util.List;
 public interface MetricaCpuRepository extends JpaRepository<MetricaCpu, Long> {
     List<MetricaCpu> findTop100ByOrderByCapturadoEmAsc();
 
+    List<MetricaCpu> findByCapturadoEmAfterOrderByCapturadoEmAsc(LocalDateTime after);
+    List<MetricaCpu> findByCapturadoEmBetweenOrderByCapturadoEmAsc(LocalDateTime inicio, LocalDateTime fim);
+
+    MetricaCpu findTop1ByOrderByCapturadoEmDesc();
+
     @Modifying
     @Query("DELETE FROM MetricaCpu m WHERE m.capturadoEm < :dataLimite")
     void deleteOlderThan(@Param("dataLimite") LocalDateTime dataLimite);

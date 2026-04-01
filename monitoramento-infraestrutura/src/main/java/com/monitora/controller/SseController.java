@@ -9,10 +9,10 @@ import com.monitora.service.ColetorDiscoService;
 import com.monitora.service.ColetorMemoriaService;
 import com.monitora.service.ColetorRedeService;
 import com.monitora.service.ColetorCpuService;
-import com.monitora.service.ColetorRedeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,13 +34,13 @@ public class SseController {
     private final ColetorRedeService coletorRede;
     private final ColetorCpuService coletorCpu;
     private final ObjectMapper objectMapper;
+    private final TaskScheduler taskScheduler;
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() {
         SseEmitter emitter = new SseEmitter(300_000L); // 5 min timeout
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-        executor.scheduleAtFixedRate(() -> {
+        Runnable dispatch = () -> {
             try {
                 MemoriaInfoDTO memoria = coletorMemoria.coletarDadosAtuais();
                 emitter.send(SseEmitter.event()
@@ -81,17 +81,30 @@ public class SseController {
             } catch (Exception e) {
                 log.warn("SSE emitter error: {}", e.getMessage());
                 emitter.completeWithError(e);
-                executor.shutdown();
             }
-        }, 0, 5, TimeUnit.SECONDS);
+        };
 
-        emitter.onCompletion(executor::shutdown);
+        var scheduled = taskScheduler.scheduleAtFixedRate(dispatch, java.time.Duration.ofSeconds(5));
+
+        emitter.onCompletion(() -> {
+            if (scheduled != null) {
+                scheduled.cancel(true);
+            }
+        });
         emitter.onTimeout(() -> {
-            executor.shutdown();
+            if (scheduled != null) {
+                scheduled.cancel(true);
+            }
             emitter.complete();
         });
-        emitter.onError(e -> executor.shutdown());
+        emitter.onError(e -> {
+            if (scheduled != null) {
+                scheduled.cancel(true);
+            }
+        });
 
+        // Enviar primeiro pacote imediato e retornar emitter
+        dispatch.run();
         return emitter;
     }
 

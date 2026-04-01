@@ -10,6 +10,17 @@
         <p class="page-subtitle">Visão geral do sistema em tempo real</p>
     </div>
 
+    <div th:if="${alertas != null and !alertas.isEmpty()}" class="panel fade-in-up" style="border-color: var(--color-danger);">
+        <div class="panel-header" style="background: rgba(239, 68, 68, 0.1);">
+            <span class="panel-title" style="color: var(--color-danger);">🚨 Alertas</span>
+        </div>
+        <div class="panel-body" style="padding: 12px 20px;">
+            <ul style="margin:0; padding-left: 1.3rem;">
+                <li th:each="a : ${alertas}" th:text="${a}" style="color: var(--color-danger);"></li>
+            </ul>
+        </div>
+    </div>
+
     <!-- Cards de Resumo -->
     <div class="cards-grid">
 
@@ -103,6 +114,29 @@
                              th:classappend="${disco.percentualUso >= 85 ? 'danger' : (disco.percentualUso >= 70 ? 'warning' : '')}"
                              th:style="'width:' + ${disco.percentualUso} + '%'"></div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="two-cols">
+        <div class="panel fade-in-up">
+            <div class="panel-header">
+                <span class="panel-title">📊 CPU — Última Hora</span>
+            </div>
+            <div class="panel-body">
+                <div class="chart-container">
+                    <canvas id="chartCpu"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="panel fade-in-up">
+            <div class="panel-header">
+                <span class="panel-title">📡 Rede — Última Hora (bytes/s)</span>
+            </div>
+            <div class="panel-body">
+                <div class="chart-container">
+                    <canvas id="chartRede"></canvas>
                 </div>
             </div>
         </div>
@@ -204,6 +238,93 @@
             });
         } else if (ctx) {
             ctx.parentElement.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px 0">Aguardando dados históricos...</p>';
+        }
+
+        const cpuCtx = document.getElementById('chartCpu');
+        const redeCtx = document.getElementById('chartRede');
+
+        const historicoCpu = /*[[${historicoCpu}]]*/ [];
+        const historicoRede = /*[[${historicoRede}]]*/ [];
+
+        if (cpuCtx && historicoCpu.length > 0) {
+            const labelsCpu = historicoCpu.map(m => {
+                const d = new Date(m.capturadoEm);
+                return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            });
+            const dadosCpu = historicoCpu.map(m => m.percentualUso);
+
+            new Chart(cpuCtx, {
+                type: 'line',
+                data: {
+                    labels: labelsCpu,
+                    datasets: [{
+                        label: 'Uso de CPU (%)',
+                        data: dadosCpu,
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249,115,22,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 6 } },
+                        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v + '%' } }
+                    }
+                }
+            });
+        }
+
+        if (redeCtx && historicoRede.length > 0) {
+            const labelsRede = historicoRede.map(m => {
+                const d = new Date(m.capturadoEm);
+                return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            });
+            const dadosEnvio = historicoRede.map(m => m.bytesEnviadosPorSegundo || 0);
+            const dadosRecebido = historicoRede.map(m => m.bytesRecebidosPorSegundo || 0);
+
+            new Chart(redeCtx, {
+                type: 'line',
+                data: {
+                    labels: labelsRede,
+                    datasets: [
+                        {
+                            label: 'Envio (B/s)',
+                            data: dadosEnvio,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34,197,94,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Recebido (B/s)',
+                            data: dadosRecebido,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59,130,246,0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 6 } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => Number(v).toLocaleString() } }
+                    }
+                }
+            });
         }
     });
 </script>

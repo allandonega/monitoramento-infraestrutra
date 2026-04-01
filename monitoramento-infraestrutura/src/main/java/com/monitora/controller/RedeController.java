@@ -47,4 +47,14 @@ public class RedeController {
                 LocalDateTime.now().minusHours(horas));
         return ResponseEntity.ok(dados);
     }
+
+    @GetMapping("/api/conexoes-suspeitas")
+    @ResponseBody
+    public ResponseEntity<List<MetricaRede>> historicoConexoesSuspeitas(
+            @RequestParam(defaultValue = "24") int horas) {
+        List<MetricaRede> dados = redeRepo
+            .findBySuspeitaTrueAndCapturadoEmAfterOrderByCapturadoEmDesc(
+                LocalDateTime.now().minusHours(horas));
+        return ResponseEntity.ok(dados);
+    }
 }
