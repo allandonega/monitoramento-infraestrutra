@@ -55,15 +55,25 @@
         </div>
     </div>
 
-    <!-- Gráfico Histórico de Conexões (1h) -->
-    <div class="panel fade-in-up">
+    <!-- Histórico de Conexões Suspeitas -->
+    <div class="panel fade-in-up" id="suspeitasHistoricoPanel" style="display: none;">
         <div class="panel-header">
-            <span class="panel-title">📈 Conexões Estabelecidas — Última Hora</span>
+            <span class="panel-title">🕵️‍♂️ Histórico de Conexões Suspeitas (24h)</span>
+            <button class="badge badge-muted" style="border: none; cursor: pointer;" id="btn-recarregar-suspeitas">Atualizar</button>
         </div>
-        <div class="panel-body">
-            <div class="chart-container">
-                <canvas id="chartRede"></canvas>
-            </div>
+        <div style="overflow-x: auto; max-height: 300px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Capturado</th>
+                        <th>IP Remoto</th>
+                        <th>Porta</th>
+                        <th>Estado</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody id="suspeitasHistoricoBody"></tbody>
+            </table>
         </div>
     </div>
 
@@ -222,6 +232,40 @@
                 fechadasEl.textContent = d.conexoesFechadas;
             }
         });
+
+        const fetchSuspeitas = async () => {
+            try {
+                const resposta = await fetch('/rede/api/conexoes-suspeitas?horas=24');
+                if (!resposta.ok) return;
+                const dados = await resposta.json();
+                const body = document.getElementById('suspeitasHistoricoBody');
+                const panel = document.getElementById('suspeitasHistoricoPanel');
+                if (!body || !panel) return;
+
+                body.innerHTML = '';
+                if (dados.length <= 0) {
+                    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">Nenhuma conexão suspeita registrada nas últimas 24h</td></tr>';
+                } else {
+                    dados.slice(0, 30).forEach(c => {
+                        const linha = document.createElement('tr');
+                        linha.innerHTML = `
+                            <td class="mono">${new Date(c.capturadoEm).toLocaleString('pt-BR')}</td>
+                            <td class="mono">${c.ipRemoto || ''}</td>
+                            <td class="mono">${c.portaLocal || ''}</td>
+                            <td>${c.estado || ''}</td>
+                            <td>${c.motivoSuspeita || ''}</td>
+                        `;
+                        body.appendChild(linha);
+                    });
+                }
+                panel.style.display = 'block';
+            } catch (e) {
+                console.warn('Erro ao buscar conexões suspeitas', e);
+            }
+        };
+
+        document.getElementById('btn-recarregar-suspeitas')?.addEventListener('click', fetchSuspeitas);
+        fetchSuspeitas();
     });
 </script>
 

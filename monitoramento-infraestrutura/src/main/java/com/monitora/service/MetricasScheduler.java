@@ -24,6 +24,7 @@ public class MetricasScheduler {
     private final ColetorMemoriaService coletorMemoria;
     private final ColetorRedeService coletorRede;
     private final ColetorCpuService coletorCpu;
+    private final AlertaService alertaService;
     private final MetricaDiscoRepository discoRepo;
     private final MetricaMemoriaRepository memoriaRepo;
     private final MetricaRedeRepository redeRepo;
@@ -72,6 +73,7 @@ public class MetricasScheduler {
     public void coletarCpu() {
         try {
             coletorCpu.coletarEPersistir();
+            alertaService.verificarEEnviarAlertas();
             log.debug("Métricas de CPU coletadas");
         } catch (Exception e) {
             log.error("Erro ao coletar CPU: {}", e.getMessage());

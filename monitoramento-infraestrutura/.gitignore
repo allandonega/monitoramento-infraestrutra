@@ -42,6 +42,9 @@ buildNumber.properties
 .project
 .classpath
 .settings/
+.github/
+.claude/
+
 
 # OS specific
 .DS_Store

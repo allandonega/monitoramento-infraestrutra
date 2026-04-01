@@ -43,6 +43,20 @@ mvn spring-boot:run
 
 3. Abra o navegador para visualizar os resultados ao vivo:
 - **Painel de Controle Principal:** [http://localhost:8080](http://localhost:8080)
+
+## 🛠️ Rodando como serviço do sistema
+
+### Linux (systemd)
+
+```bash
+sudo bash scripts/install-systemd.sh
+```
+
+### Windows (WinSW)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-service.ps1
+```
 - **Visualizador em Tabela de Banco H2:** [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
 - **Métricas de Diagnósticos e Verificação:** [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
 

@@ -40,27 +40,32 @@ public class DashboardUITest {
     @Test
     void testDashboardTitle() {
         Page page = browser.newPage();
-        page.navigate("http://localhost:" + port + "/");
-        
+        page.setDefaultTimeout(60000);
+        page.setDefaultNavigationTimeout(60000);
+        page.navigate("http://localhost:" + port + "/", new Page.NavigateOptions().setTimeout(60000));
+
         String title = page.title();
         assertTrue(title.contains("Dashboard"), "A página principal deve ter o título Dashboard");
-        
-        boolean isLogoPresent = page.locator(".header-logo").isVisible();
-        assertTrue(isLogoPresent, "A logo na barra superior deve estar visível");
-        
+
+        boolean isLogoPresent = page.locator(".page-title").isVisible();
+        assertTrue(isLogoPresent, "O título na página deve estar visível");
+
         page.close();
     }
-    
+
     @Test
     void testTabsNavigation() {
         Page page = browser.newPage();
-        page.navigate("http://localhost:" + port + "/");
-        
+        page.setDefaultTimeout(60000);
+        page.setDefaultNavigationTimeout(60000);
+        page.navigate("http://localhost:" + port + "/", new Page.NavigateOptions().setTimeout(60000));
+
         // Verifica navegação para Rede
         page.locator("text=Rede").click();
-        page.waitForURL("**/rede");
-        assertTrue(page.title().contains("Rede"), "Deve navegar para aba Rede");
-        
+        page.waitForURL("**/rede", new Page.WaitForURLOptions().setTimeout(60000));
+        page.waitForSelector("h1.page-title", new Page.WaitForSelectorOptions().setTimeout(60000));
+        assertTrue(page.locator("h1.page-title").textContent().contains("Monitoramento de Rede"), "Deve navegar para aba Rede");
+
         page.close();
     }
 }

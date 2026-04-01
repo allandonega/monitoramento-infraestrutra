@@ -51,6 +51,12 @@ public class MetricaRede {
     @Column(length = 30)
     private String estado;
 
+    @Column(name = "suspeita")
+    private Boolean suspeita = false;
+
+    @Column(name = "motivo_suspeita", length = 255)
+    private String motivoSuspeita;
+
     @Column(length = 200)
     private String processo;
 }
