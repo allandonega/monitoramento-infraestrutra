@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Teste de Velocidade', ~{::content})}">
+<head><title>Teste de Velocidade</title></head>
+<body>
+<div th:fragment="content">
+    <div class="page-header">
+        <h1 class="page-title">Teste de Velocidade de Internet</h1>
+        <p class="page-subtitle">Meça o download, upload e latência da sua conexão. Resultados são salvos no banco de dados.</p>
+    </div>
+
+    <!-- Botões de Teste -->
+    <div class="panel fade-in-up">
+        <div class="panel-header">
+            <span class="panel-title">🚀 Iniciar Teste</span>
+        </div>
+        <div class="panel-body" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
+            <button id="btn-download" class="btn btn-primary" onclick="executarTeste('download')">
+                ⬇️ Testar Download
+            </button>
+            <button id="btn-upload" class="btn btn-primary" onclick="executarTeste('upload')">
+                ⬆️ Testar Upload
+            </button>
+            <button id="btn-ping" class="btn btn-primary" onclick="executarTeste('ping')">
+                📡 Testar Ping
+            </button>
+            <span id="spinner" style="display:none; color:var(--text-muted)">
+                ⏳ Executando teste, aguarde...
+            </span>
+        </div>
+    </div>
+
+    <!-- Resultado Atual -->
+    <div id="resultado-container" class="grid-cards fade-in-up" style="display:none;">
+        <div class="card status-card">
+            <div class="card-icon" id="resultado-icone">⬇️</div>
+            <div class="card-info">
+                <h3 id="resultado-titulo">Download</h3>
+                <p class="value" id="resultado-velocidade" style="font-size:2.2rem; font-weight:700; color:var(--color-primary)">-- Mbps</p>
+            </div>
+        </div>
+        <div class="card status-card">
+            <div class="card-icon">📦</div>
+            <div class="card-info">
+                <h3>Dados Transferidos</h3>
+                <p class="value" id="resultado-bytes">--</p>
+            </div>
+        </div>
+        <div class="card status-card">
+            <div class="card-icon">⏱️</div>
+            <div class="card-info">
+                <h3>Duração do Teste</h3>
+                <p class="value" id="resultado-duracao">--</p>
+            </div>
+        </div>
+        <div class="card status-card" id="resultado-ping-card" style="display:none;">
+            <div class="card-icon">📡</div>
+            <div class="card-info">
+                <h3>Latência Média</h3>
+                <p class="value" id="resultado-latencia">-- ms</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Histórico -->
+    <div class="panel fade-in-up mt-3">
+        <div class="panel-header">
+            <span class="panel-title">📈 Histórico (últimos 7 dias)</span>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="chartVelocidade"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de histórico -->
+    <div class="panel fade-in-up mt-3">
+        <div class="panel-header">
+            <span class="panel-title">📋 Últimos Testes</span>
+        </div>
+        <div class="panel-body p-0">
+            <table class="data-table" id="tabela-historico">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th class="text-right">Velocidade</th>
+                        <th class="text-right">Latência</th>
+                        <th class="text-right">Duração</th>
+                        <th>Data/Hora</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-historico">
+                    <tr th:each="t : ${historico}">
+                        <td>
+                            <span class="badge"
+                                th:classappend="${t.tipo.name() == 'DOWNLOAD' ? 'badge-info' : (t.tipo.name() == 'UPLOAD' ? 'badge-warning' : 'badge-success')}"
+                                th:text="${t.tipo.name() == 'DOWNLOAD' ? '⬇️ Download' : (t.tipo.name() == 'UPLOAD' ? '⬆️ Upload' : '📡 Ping')}">
+                            </span>
+                        </td>
+                        <td class="text-right" th:text="${t.tipo.name() == 'PING' ? '—' : #numbers.formatDecimal(t.velocidadeMbps, 1, 2) + ' Mbps'}"></td>
+                        <td class="text-right" th:text="${t.tipo.name() == 'PING' ? #numbers.formatDecimal(t.latenciaMs, 1, 1) + ' ms' : '—'}"></td>
+                        <td class="text-right" th:text="${t.duracaoMs + ' ms'}"></td>
+                        <td th:text="${#temporals.format(t.executadoEm, 'dd/MM/yyyy HH:mm:ss')}"></td>
+                    </tr>
+                    <tr th:if="${historico == null or historico.isEmpty()}">
+                        <td colspan="5" style="text-align:center; color:var(--text-muted); padding:2rem">
+                            Nenhum teste realizado ainda. Clique em "Testar Download" para começar.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+let chartVelocidade = null;
+
+async function executarTeste(tipo) {
+    const btns = ['btn-download', 'btn-upload', 'btn-ping'];
+    btns.forEach(id => document.getElementById(id).disabled = true);
+    document.getElementById('spinner').style.display = 'inline';
+    document.getElementById('resultado-container').style.display = 'none';
+
+    try {
+        const resp = await fetch('/velocidade/api/testar/' + tipo, { method: 'POST' });
+        const dados = await resp.json();
+
+        if (!resp.ok) {
+            alert('Erro: ' + (dados.erro || 'Falha no teste'));
+            return;
+        }
+
+        exibirResultado(tipo, dados);
+        await atualizarTabela();
+        await carregarGrafico();
+    } catch (e) {
+        alert('Erro de conexão: ' + e.message);
+    } finally {
+        btns.forEach(id => document.getElementById(id).disabled = false);
+        document.getElementById('spinner').style.display = 'none';
+    }
+}
+
+function exibirResultado(tipo, dados) {
+    const container = document.getElementById('resultado-container');
+    const icones = { download: '⬇️', upload: '⬆️', ping: '📡' };
+    const titulos = { download: 'Download', upload: 'Upload', ping: 'Ping / Latência' };
+
+    document.getElementById('resultado-icone').textContent = icones[tipo];
+    document.getElementById('resultado-titulo').textContent = titulos[tipo];
+
+    if (tipo === 'ping') {
+        document.getElementById('resultado-velocidade').textContent = dados.latenciaMs.toFixed(1) + ' ms';
+        document.getElementById('resultado-ping-card').style.display = 'flex';
+        document.getElementById('resultado-latencia').textContent = dados.latenciaMs.toFixed(1) + ' ms';
+    } else {
+        document.getElementById('resultado-velocidade').textContent = dados.velocidadeMbps.toFixed(2) + ' Mbps';
+        document.getElementById('resultado-ping-card').style.display = 'none';
+    }
+
+    const mb = (dados.bytesTransferidos / 1_000_000).toFixed(2);
+    document.getElementById('resultado-bytes').textContent = mb + ' MB';
+    document.getElementById('resultado-duracao').textContent = dados.duracaoMs + ' ms';
+    container.style.display = 'grid';
+}
+
+async function atualizarTabela() {
+    try {
+        const resp = await fetch('/velocidade/api/historico?dias=30');
+        const lista = await resp.json();
+        const tbody = document.getElementById('tbody-historico');
+
+        if (!lista.length) return;
+
+        tbody.innerHTML = lista.reverse().map(t => {
+            const tipo = t.tipo;
+            const badge = tipo === 'DOWNLOAD' ? 'badge-info' : (tipo === 'UPLOAD' ? 'badge-warning' : 'badge-success');
+            const icone = tipo === 'DOWNLOAD' ? '⬇️ Download' : (tipo === 'UPLOAD' ? '⬆️ Upload' : '📡 Ping');
+            const vel = tipo === 'PING' ? '—' : t.velocidadeMbps.toFixed(2) + ' Mbps';
+            const lat = tipo === 'PING' ? t.latenciaMs.toFixed(1) + ' ms' : '—';
+            const data = new Date(t.executadoEm).toLocaleString('pt-BR');
+            return `<tr>
+                <td><span class="badge ${badge}">${icone}</span></td>
+                <td class="text-right">${vel}</td>
+                <td class="text-right">${lat}</td>
+                <td class="text-right">${t.duracaoMs} ms</td>
+                <td>${data}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.warn('Erro ao atualizar tabela', e);
+    }
+}
+
+async function carregarGrafico() {
+    try {
+        const resp = await fetch('/velocidade/api/historico?dias=7');
+        const lista = await resp.json();
+
+        const downloads = lista.filter(t => t.tipo === 'DOWNLOAD');
+        const uploads   = lista.filter(t => t.tipo === 'UPLOAD');
+
+        const allTimes = [...new Set([...downloads, ...uploads]
+            .map(t => t.executadoEm))].sort();
+
+        const labels = allTimes.map(ts => new Date(ts).toLocaleString('pt-BR', {
+            day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
+        }));
+
+        const downMap = Object.fromEntries(downloads.map(t => [t.executadoEm, t.velocidadeMbps]));
+        const upMap   = Object.fromEntries(uploads.map(t   => [t.executadoEm, t.velocidadeMbps]));
+
+        const downData = allTimes.map(ts => downMap[ts] ?? null);
+        const upData   = allTimes.map(ts => upMap[ts]   ?? null);
+
+        const ctx = document.getElementById('chartVelocidade');
+        if (!ctx) return;
+
+        if (chartVelocidade) chartVelocidade.destroy();
+
+        chartVelocidade = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Download (Mbps)',
+                        data: downData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2,
+                        spanGaps: false
+                    },
+                    {
+                        label: 'Upload (Mbps)',
+                        data: upData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.1)',
+                        fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2,
+                        spanGaps: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+                    y: {
+                        min: 0,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#64748b', callback: v => v + ' Mbps' }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.warn('Erro ao carregar gráfico', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => carregarGrafico());
+</script>
+</div>
+</body>
+</html>
