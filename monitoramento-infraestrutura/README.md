@@ -8,6 +8,7 @@ Um poderoso painel com interface web para monitoramento contínuo e em tempo rea
 - **Armazenamento / Discos:** Entenda os volumes formatados, mapeando espaço livre, espaço alocado e capacidade total.
 - **Memória RAM virtual e Swap:** Carga de processos complexos que gastam excesso de limites pré-estabelecidos e visão completa do sistema de cache de hardware.
 - **Rede e Conectividade:** Dashboard contínuo informando tráfegos de intrusos e aberturas de conexões ativas/fechadas.
+- **Teste de Velocidade de Internet:** Meça download, upload e latência diretamente pelo painel. Cada execução é gravada no banco com data/hora e tipo do teste, gerando um histórico visual com gráficos de evolução ao longo do tempo.
 - **Painel Assíncrono em Tempo Real:** Todo o Frontend atualiza "Sozinho"! Desenvolvido com uma abordagem limpa através de **Thymeleaf**, **SSE (Server-Sent Events) via Streams do Spring** e **HTMX**. Nem o usuário nem o navegador precisam forçar novas requisições. 
 - **Limpeza Inteligente de Histórico (Auto-Vacuum):** Agendadores cuidando de seu espaço em disco, removendo snapshots do banco de dados embargados pelo uso muito duradouro, com tolerância configurável.
 
@@ -43,6 +44,7 @@ mvn spring-boot:run
 
 3. Abra o navegador para visualizar os resultados ao vivo:
 - **Painel de Controle Principal:** [http://localhost:8080](http://localhost:8080)
+- **Teste de Velocidade:** [http://localhost:8080/velocidade](http://localhost:8080/velocidade)
 
 ## 🛠️ Rodando como serviço do sistema
 
